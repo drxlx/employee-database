@@ -20,12 +20,13 @@ int main(int argc, char *argv[]) {
     char *filepath = NULL;
     char *addstring = NULL;
     bool list = false;
+    char *removenamestring = NULL;
 
     int dbfd = -1;
     struct dbheader_t *dbhdr = NULL;
     struct employee_t *employees = NULL;
 
-    while ((c = getopt(argc, argv, "nf:a:l")) != -1) {
+    while ((c = getopt(argc, argv, "nf:a:lr:")) != -1) {
         switch (c) {
             case 'n':
                 newfile = true;
@@ -38,6 +39,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'l':
                 list = true;
+                break;
+            case 'r':
+                removenamestring = optarg;
                 break;
             case '?':
                 printf("Unknown option – %c\n", c);
@@ -87,6 +91,15 @@ int main(int argc, char *argv[]) {
         dbhdr->count++;
         employees = realloc(employees, dbhdr->count*(sizeof(struct employee_t)));
         add_employee(dbhdr, employees, addstring);
+    }
+
+    if (removenamestring) {
+        if (remove_employee(dbhdr, employees, removenamestring) == STATUS_ERROR) {
+            printf("Unable to remove employee\n");
+            return -1;
+        }
+        dbhdr->count--;
+        employees = realloc(employees, dbhdr->count*(sizeof(struct employee_t)));
     }
 
     if (list) {

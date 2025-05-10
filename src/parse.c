@@ -32,6 +32,30 @@ int add_employee(struct dbheader_t *dbhdr, struct employee_t *employees, char *a
     return STATUS_SUCCESS;
 }
 
+int remove_employee(struct dbheader_t *dbhdr, struct employee_t *employees, char *removenamestring) {
+    int deleteIndex = -1;
+    
+    int i = 0;
+    for (; i < dbhdr->count; i++) {
+        if (strcmp(employees[i].name, removenamestring) == 0) {
+            deleteIndex = i;
+            break;
+        }
+    }
+
+    if (deleteIndex != -1) {
+        i = deleteIndex;
+        for (; i < dbhdr->count-1; i++) {
+            employees[i] = employees[i + 1];
+        }
+    } else {
+        printf("There is no employee with name %s\n", removenamestring);
+        return STATUS_ERROR;
+    }
+
+    return STATUS_SUCCESS;
+}
+
 int read_employees(int fd, struct dbheader_t *dbhdr, struct employee_t **employeesOut) {
     if (fd < 0) {
         printf("Got a bad FD from the user\n");
@@ -65,21 +89,26 @@ int output_file(int fd, struct dbheader_t *dbhdr, struct employee_t *employees) 
     }
 
     int realcount = dbhdr->count;
+    long realfilesize = sizeof(struct dbheader_t) + sizeof(struct employee_t) * realcount;
 
     dbhdr->magic = htonl(dbhdr->magic);
     dbhdr->version = htons(dbhdr->version);
     dbhdr->count = htons(dbhdr->count);
-    dbhdr->filesize = htonl(sizeof(struct dbheader_t) + sizeof(struct employee_t) * realcount);
+    dbhdr->filesize = htonl(sizeof(struct dbheader_t) + (sizeof(struct employee_t) * realcount));
 
     lseek(fd, 0, SEEK_SET);
 
     write(fd, dbhdr, sizeof(struct dbheader_t));
 
-    int i = 0;
-    for (; i < realcount; i++) {
-        employees[i].hours = htonl(employees[i].hours);
-        write(fd, &employees[i], sizeof(struct employee_t));
+    if (dbhdr->count > 0) {
+        int i = 0;
+        for (; i < realcount; i++) {
+            employees[i].hours = htonl(employees[i].hours);
+            write(fd, &employees[i], sizeof(struct employee_t));
+        }
     }
+
+    ftruncate(fd, realfilesize);
 
     return STATUS_SUCCESS;
 }	
@@ -129,8 +158,6 @@ int validate_db_header(int fd, struct dbheader_t **headerOut) {
     }
 
     *headerOut = header;
-
-    return STATUS_SUCCESS;
 }
 
 int create_db_header(int fd, struct dbheader_t **headerOut) {
