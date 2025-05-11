@@ -56,6 +56,30 @@ int remove_employee(struct dbheader_t *dbhdr, struct employee_t *employees, char
     return STATUS_SUCCESS;
 }
 
+int update_hours(struct dbheader_t *dbhdr, struct employee_t *employees, char *updatehoursstring) {
+    char *name = strtok(updatehoursstring, ",");
+    char *hours = strtok(NULL, ",");
+
+    int updateIndex = -1;
+
+    int i = 0;
+    for (; i < dbhdr->count; i++) {
+        if (strcmp(employees[i].name, name) == 0) {
+            updateIndex = i;
+            break;
+        }
+    }
+
+    if (updateIndex != -1) {
+        employees[updateIndex].hours = atoi(hours);
+    } else {
+        printf("There is no employee with name %s\n", name);
+        return STATUS_ERROR;
+    }
+
+    return STATUS_SUCCESS;
+}
+
 int read_employees(int fd, struct dbheader_t *dbhdr, struct employee_t **employeesOut) {
     if (fd < 0) {
         printf("Got a bad FD from the user\n");
