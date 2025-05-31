@@ -22,12 +22,14 @@ int main(int argc, char *argv[]) {
     bool list = false;
     char *removenamestring = NULL;
     char *updatehoursstring = NULL;
+    char *portarg = NULL;
+    unsigned short port = 0;
 
     int dbfd = -1;
     struct dbheader_t *dbhdr = NULL;
     struct employee_t *employees = NULL;
 
-    while ((c = getopt(argc, argv, "nf:a:lr:h:")) != -1) {
+    while ((c = getopt(argc, argv, "nf:a:lr:h:p:")) != -1) {
         switch (c) {
             case 'n':
                 newfile = true;
@@ -46,6 +48,13 @@ int main(int argc, char *argv[]) {
                 break;
             case 'h':
                 updatehoursstring = optarg;
+                break;
+            case 'p':
+                portarg = optarg;
+                port = atoi(portarg);
+                if (port == 0) {
+                    printf("Bad port: %s\n", portarg);
+                }
                 break;
             case '?':
                 printf("Unknown option – %c\n", c);
