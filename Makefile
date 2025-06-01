@@ -5,7 +5,7 @@ SRC_SRV = $(wildcard src/srv/*.c)
 OBJ_SRV = $(SRC_SRV:src/srv/%.c=obj/srv/%.o)
 
 SRC_CLI = $(wildcard src/cli/*.c)
-OBJ_CLI = $(SRC_CLI:src/srv/%.c=obj/cli/%.o)
+OBJ_CLI = $(SRC_CLI:src/cli/%.c=obj/cli/%.o)
 
 run: clean default
 	./$(TARGET_SRV) -f ./mynewdb.db -n -p 8080
