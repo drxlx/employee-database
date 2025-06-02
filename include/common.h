@@ -17,6 +17,7 @@ typedef enum {
     MSG_EMPLOYEE_ADD_RESP,
     MSG_EMPLOYEE_DEL_REQ,
     MSG_EMPLOYEE_DEL_RESP,
+    MSG_ERROR,
 } dbproto_type_e;
 
 typedef struct {
