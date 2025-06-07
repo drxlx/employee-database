@@ -6,8 +6,50 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "common.h"
+
+int list_employees(int fd) {
+  char buf[4096] = {0};
+
+  dbproto_hdr_t *hdr = buf;
+  hdr->type = MSG_EMPLOYEE_LIST_REQ;
+  hdr->len = 0;
+
+  hdr->type = htonl(hdr->type);
+  hdr->len = htons(hdr->len);
+
+  // write the hello message
+  write(fd, buf, sizeof(dbproto_hdr_t) + sizeof(dbproto_employee_add_req));
+  
+  // recv the response
+  read(fd, hdr, sizeof(dbproto_hdr_t));
+
+  hdr->type = ntohl(hdr->type);
+  hdr->len = ntohs(hdr->len);
+
+  // handle error response
+  if (hdr->type == MSG_ERROR) {
+    printf("Unable to list employees.\n");
+    close(fd);
+    return STATUS_ERROR;
+  } 
+
+  if (hdr->type == MSG_EMPLOYEE_LIST_RESP) {
+    printf("Listing employees...\n");
+    dbproto_employee_list_resp *employee = (dbproto_hello_req*)&hdr[1];
+
+    int i = 0;
+    for (; i < hdr->len; i++) {
+      read(fd, employee, sizeof(dbproto_employee_list_resp));
+      employee->hours = ntohl(employee->hours);
+      printf("%s, %s, %d\n", employee->name, employee->address, employee->hours);
+    } 
+  }
+
+  return STATUS_SUCCESS;
+}
 
 int send_employee(int fd, char *addstr) {
   char buf[4096] = {0};
@@ -84,9 +126,10 @@ int main(int argc, char *argv[]) {
     char *portarg = NULL;
     char *hostarg = NULL;
     unsigned short port = 0;
+    bool list = false;
 
     int c;
-    while ((c = getopt(argc, argv, "p:h:a:")) != -1) {
+    while ((c = getopt(argc, argv, "p:h:a:l")) != -1) {
         switch (c) {
             case 'a':
                 addarg = optarg;
@@ -97,6 +140,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'h':
                 hostarg = optarg;
+                break;
+            case 'l':
+                list = true;
                 break;
             case '?':
                 printf("Unknown option – %c\n", c);
@@ -138,6 +184,10 @@ int main(int argc, char *argv[]) {
 
     if (addarg) {
         send_employee(fd, addarg);
+    }
+
+    if (list) {
+        list_employees(fd);
     }
 
     close(fd);

@@ -148,8 +148,14 @@ int output_file(int fd, struct dbheader_t *dbhdr, struct employee_t *employees) 
         for (; i < realcount; i++) {
             employees[i].hours = htonl(employees[i].hours);
             write(fd, &employees[i], sizeof(struct employee_t));
+            employees[i].hours = ntohl(employees[i].hours);
         }
     }
+
+    dbhdr->magic = ntohl(dbhdr->magic);
+	dbhdr->filesize = ntohl(sizeof(struct dbheader_t) + (sizeof(struct employee_t) * realcount));
+	dbhdr->count = ntohs(dbhdr->count);
+	dbhdr->version = ntohs(dbhdr->version);
 
     ftruncate(fd, realfilesize);
 
