@@ -21,10 +21,11 @@ void print_usage(char *argv[]) {
     printf("Usage – %s -n -f <database file>\n", argv[0]);
     printf("\t -n – create database file\n");
     printf("\t -f – (required) path to database file\n");
+    printf("\t -p  - (required) port to listen to\n");
     return;
 }
 
-void poll_loop(unsigned short port, struct dbheader_t *dbhdr, struct employee_t *employees) {
+void poll_loop(unsigned short port, struct dbheader_t *dbhdr, struct employee_t **employeeptr, int dbfd) {
     int listen_fd, conn_fd, freeSlot;
     struct sockaddr_in server_addr, client_addr;
     socklen_t client_len = sizeof(client_addr);
@@ -98,7 +99,7 @@ void poll_loop(unsigned short port, struct dbheader_t *dbhdr, struct employee_t 
                 close(conn_fd);
             } else {
                 clientStates[freeSlot].fd = conn_fd;
-                clientStates[freeSlot].state = STATE_CONNECTED;
+                clientStates[freeSlot].state = STATE_HELLO;
                 nfds++;
                 printf("Slot %d has fd %d\n", freeSlot, clientStates[freeSlot].fd);
             }
@@ -115,16 +116,14 @@ void poll_loop(unsigned short port, struct dbheader_t *dbhdr, struct employee_t 
                 ssize_t bytes_read = read(fd, &clientStates[slot].buffer, sizeof(clientStates[slot].buffer));
                 if (bytes_read <= 0) {
                     close(fd);
-                    if (slot == -1) {
-                        printf("Tried to close fd that doesn't exist?\n");
-                    } else {
-                        clientStates[slot].fd = -1;
+                    if (slot != -1) {
+                        clientStates[slot].fd = -1; // Free up the slot
                         clientStates[slot].state = STATE_DISCONNECTED;
-                        printf("Client disconnected or error\n");
+                        printf("Client disconnected\n");
                         nfds--;
                     }
                 } else {
-                    handle_client_fsm(dbhdr, employees, &clientStates[slot]);
+                    handle_client_fsm(dbhdr, employeeptr, &clientStates[slot], dbfd);
                 }
             }
         }
@@ -135,8 +134,6 @@ int main(int argc, char *argv[]) {
 	int c;
     bool newfile = false;
     char *filepath = NULL;
-    char *addstring = NULL;
-    bool list = false;
     char *removenamestring = NULL;
     char *updatehoursstring = NULL;
     char *portarg = NULL;
@@ -146,7 +143,7 @@ int main(int argc, char *argv[]) {
     struct dbheader_t *dbhdr = NULL;
     struct employee_t *employees = NULL;
 
-    while ((c = getopt(argc, argv, "nf:a:lr:h:p:")) != -1) {
+    while ((c = getopt(argc, argv, "nf:r:h:p:")) != -1) {
         switch (c) {
             case 'n':
                 newfile = true;
@@ -154,18 +151,12 @@ int main(int argc, char *argv[]) {
             case 'f':
                 filepath = optarg;
                 break;
-                        case 'p':
+            case 'p':
                 portarg = optarg;
                 port = atoi(portarg);
                 if (port == 0) {
                     printf("Bad port: %s\n", portarg);
                 }
-                break;
-            case 'a':
-                addstring = optarg;
-                break;
-            case 'l':
-                list = true;
                 break;
             case 'r':
                 removenamestring = optarg;
@@ -223,12 +214,6 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    if (addstring) {
-        dbhdr->count++;
-        employees = realloc(employees, dbhdr->count*(sizeof(struct employee_t)));
-        add_employee(dbhdr, employees, addstring);
-    }
-
     if (removenamestring) {
         if (remove_employee(dbhdr, employees, removenamestring) == STATUS_ERROR) {
             printf("Unable to remove employee\n");
@@ -245,11 +230,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (list) {
-        list_employees(dbhdr, employees);
-    }
-
-    poll_loop(port, &dbhdr, &employees);
+    poll_loop(port, dbhdr, &employees, dbfd);
 
     output_file(dbfd, dbhdr, employees);
 

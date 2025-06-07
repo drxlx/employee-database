@@ -26,7 +26,7 @@ void fsm_reply_hello_err(clientstate_t *client, dbproto_hdr_t *hdr) {
     write(client->fd, hdr, sizeof(dbproto_hdr_t));
 }
 
-void handle_client_fsm(struct dbheader_t *dbhdr, struct employee_t *employees, clientstate_t *client) {
+void handle_client_fsm(struct dbheader_t *dbhdr, struct employee_t **employeeptr, clientstate_t *client, int dbfd) {
     dbproto_hdr_t *hdr = (dbproto_hdr_t*)client->buffer;
 
     hdr->type = ntohl(hdr->type);
