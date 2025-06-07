@@ -19,7 +19,21 @@ void fsm_reply_hello(clientstate_t *client, dbproto_hdr_t *hdr) {
     write(client->fd, hdr, sizeof(dbproto_hdr_t) + sizeof(dbproto_hello_resp));
 }
 
+void fsm_reply_add(clientstate_t *client, dbproto_hdr_t *hdr) {
+    hdr->type = htonl(MSG_EMPLOYEE_ADD_RESP);
+    hdr->len = htons(0);
+
+    write(client->fd, hdr, sizeof(dbproto_hdr_t));
+}
+
 void fsm_reply_hello_err(clientstate_t *client, dbproto_hdr_t *hdr) {
+    hdr->type = htonl(MSG_ERROR);
+    hdr->len = htons(0);
+
+    write(client->fd, hdr, sizeof(dbproto_hdr_t));
+}
+
+void fsm_reply_add_err(clientstate_t *client, dbproto_hdr_t *hdr) {
     hdr->type = htonl(MSG_ERROR);
     hdr->len = htons(0);
 
@@ -35,7 +49,8 @@ void handle_client_fsm(struct dbheader_t *dbhdr, struct employee_t **employeeptr
     if (client->state == STATE_HELLO) {
         if (hdr->type != MSG_HELLO_REQ || hdr->len != 1) {
             printf("Didn't get MSG_HELLO in HELLO state...\n");
-            // TODO: send err msg
+            fsm_reply_hello_err(client, hdr);
+            return;
         }
 
         dbproto_hello_req* hello = (dbproto_hello_req*)&hdr[1];
@@ -52,7 +67,18 @@ void handle_client_fsm(struct dbheader_t *dbhdr, struct employee_t **employeeptr
     }
 
     if (client->state == STATE_MSG) {
+        if (hdr->type == MSG_EMPLOYEE_ADD_REQ) {
+            dbproto_employee_add_req* employee = (dbproto_hello_req*)&hdr[1];
 
+            printf("Adding employee: %s\n", employee->data);
+            if (add_employee(dbhdr, employeeptr, employee->data) != STATUS_SUCCESS) {
+                fsm_reply_add_err(client, hdr);
+                return;
+            } else {
+                fsm_reply_add(client,hdr);
+                output_file(dbfd, dbhdr, *employeeptr);
+            }
+        }
     }
 }
 

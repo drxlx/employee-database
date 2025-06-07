@@ -5,8 +5,46 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "common.h"
+
+int send_employee(int fd, char *addstr) {
+  char buf[4096] = {0};
+
+  dbproto_hdr_t *hdr = buf;
+  hdr->type = MSG_EMPLOYEE_ADD_REQ;
+  hdr->len = 1;
+
+  // send the hello request with the version we speak
+  dbproto_employee_add_req* employee = (dbproto_hello_req*)&hdr[1];
+  strncpy(&employee->data, addstr, sizeof(employee->data));
+
+  hdr->type = htonl(hdr->type);
+  hdr->len = htons(hdr->len);
+
+  // write the hello message
+  write(fd, buf, sizeof(dbproto_hdr_t) + sizeof(dbproto_employee_add_req));
+  
+  // recv the response
+  read(fd, buf, sizeof(buf));
+
+  hdr->type = ntohl(hdr->type);
+  hdr->len = ntohs(hdr->len);
+
+  // handle error response
+  if (hdr->type == MSG_ERROR) {
+    printf("Improper format for add employee string.\n");
+    close(fd);
+    return STATUS_ERROR;
+  } 
+
+  if (hdr->type == MSG_EMPLOYEE_ADD_RESP) {
+    printf("Employee succesfully added\n");
+  }
+
+  return STATUS_SUCCESS;
+}
 
 int send_hello(int fd) {
     char buf[4096] = {0};
@@ -95,8 +133,11 @@ int main(int argc, char *argv[]) {
     }
 
     if (send_hello(fd) != STATUS_SUCCESS) {
-        close(fd);
         return -1;
+    }
+
+    if (addarg) {
+        send_employee(fd, addarg);
     }
 
     close(fd);
